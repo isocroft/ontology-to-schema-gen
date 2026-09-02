@@ -2,7 +2,7 @@ package ontology
 
 import (
 	"fmt"
-  "strconv"
+	"strconv"
 	"strings"
 )
 
@@ -41,7 +41,7 @@ type Relationship struct {
 	Cardinality Cardinality
 }
 
-// Cardinality represents relationship multiplicity constraints.
+// @HINT: Cardinality represents relationship multiplicity constraints.
 type Cardinality uint8
 
 const (
@@ -60,36 +60,36 @@ func (c Cardinality) IsValid() bool {
 // @HINT: Returns the canonical string representation of a `Cardinality`.
 func (c Cardinality) String() (string, error) {
 	switch c {
-  	case CardinalityOne:
-  		return "one", nil
-  	case CardinalityZeroOrOne:
-  		return "zero..one", nil
-  	case CardinalityZeroOrMany:
-  		return "zero..many", nil
-  	case CardinalityMany:
-  		return "many", nil
-  	default:
-      if !c.IsValid() {
-        s := strconv.FormatUint(uint64(c), 10)
-        return "", fmt.Errorf("invalid cardinality type: %q", s)
-      }
-  		return "unknown"
+	  	case CardinalityOne:
+	  		return "one", nil
+	  	case CardinalityZeroOrOne:
+	  		return "zero..one", nil
+	  	case CardinalityZeroOrMany:
+	  		return "zero..many", nil
+	  	case CardinalityMany:
+	  		return "many", nil
+	  	default:
+	    	if !c.IsValid() {
+	        	s := strconv.FormatUint(uint64(c), 10)
+	        	return "", fmt.Errorf("invalid cardinality type: %q", s)
+	      	}
+		  	return "unknown", nil
 	}
 }
 
 // @HINT: Converts a string into a strongly-typed Cardinality.
 func ParseCardinality(s string) (Cardinality, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-  	case "one", "1":
-  		return CardinalityOne, nil
-  	case "zero..one", "0..1", "optional":
-  		return CardinalityZeroOrOne, nil
-  	case "zero..many", "0..*":
-  		return CardinalityZeroOrMany, nil
-  	case "many", "one..many", "1..*":
-  		return CardinalityMany, nil
-  	default:
-  		return CardinalityUnknown, fmt.Errorf("invalid cardinality representation: %q", s)
+	  	case "one", "1":
+	  		return CardinalityOne, nil
+	  	case "zero..one", "0..1", "optional":
+	  		return CardinalityZeroOrOne, nil
+	  	case "zero..many", "0..*":
+	  		return CardinalityZeroOrMany, nil
+	  	case "many", "one..many", "1..*":
+	  		return CardinalityMany, nil
+	  	default:
+	  		return CardinalityUnknown, fmt.Errorf("invalid cardinality representation: %q", s)
 	}
 }
 
