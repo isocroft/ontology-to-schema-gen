@@ -34,6 +34,29 @@ $ ./ontology-to-schema-gen \
     -dump-model=true
 ```
 
+## Step-by-Step Automation Pipeline for Development Workflow.
+
+1. **Map Ontology to OpenAPI YAML**
+
+**ontology-to-schema-gen** makes use of the ontology provided on the command line to (e.g., entities, properties, enums, relationships) to programmatically convert these ontology structures into valid OpenAPI v3.0.3 component schemas (components/schemas) saved as an `openapi.yaml` file.
+
+2. **Generate TypeScript Types**
+
+Subsequently, the CLI app from [**OpenAPI TypeScript**](https://www.npmjs.com/package/openapi-typescript) to read your generated OpenAPI YAML file and output typed interfaces. Run the transformation command in your terminal or build script as follows:
+
+```bash
+
+npx openapi-typescript ./files/openapi.yaml -o generated-models.ts
+```
+
+Use code above with caution.
+
+3. **Automate with File Watchers or CI/CD**
+
+   - **Local Development**: Use a file watcher like `chokidar-cli` or `nodemon` to watch your ontology YAML folder. Trigger your custom script and the _openapi-typescript_ compiler automatically whenever a file changes.
+   
+   - **CI/CD Pipeline**: Add a build step in GitHub Actions or your local `package.json` scripts to run the conversion before compilation or testing, ensuring your TypeScript definitions never drift from your source ontology.
+
 ### TODOS
 
 1. The generator does not currently try to infer inverse relationships. It treats each YAML relationship as an independently declared relationship. A future version should therefore add an explicit relationship reconciliation phase. That would allow the SQL generator to produce a much more semantically accurate relational model rather than mechanically translating each relationship..
