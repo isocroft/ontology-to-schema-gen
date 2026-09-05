@@ -13,7 +13,7 @@ func GenerateOpenAPI(ontologyName string, o *ontology.Ontology) string {
 
 	b.WriteString("openapi: 3.0.3\n")
 	b.WriteString("info:\n")
-	b.WriteString(fmt.Sprintf("  title: %s API\n", ontology.CapitalizeWordsManual(trings.ToLower(ontologyName))))
+	b.WriteString(fmt.Sprintf("  title: %s API\n", ontology.CapitalizeWordsManual(strings.ToLower(ontologyName))))
 	b.WriteString("  version: 1.0.0\n")
 	b.WriteString(fmt.Sprintf("  description: Generated from %s ontology.\n", strings.ToLower(ontologyName)))
 
@@ -125,78 +125,78 @@ func writeOpenAPIType(
 	}
 
 	switch strings.ToLower(typeName) {
-  	case "uuid":
-  		b.WriteString("          type: string\n")
-  		b.WriteString("          format: uuid\n")
-  
-  	case "datetime":
-  		b.WriteString("          type: string\n")
-  		b.WriteString("          format: date-time\n")
-  
-  	case "string":
-  		b.WriteString("          type: string\n")
-  
-  	case "integer", "int":
-  		b.WriteString("          type: integer\n")
-  
-  	case "int32":
-  		b.WriteString("          type: integer\n")
-  		b.WriteString("          format: int32\n")
-  
-  	case "int64":
-  		b.WriteString("          type: integer\n")
-  		b.WriteString("          format: int64\n")
-  
-  	case "float":
-  		b.WriteString("          type: number\n")
-  		b.WriteString("          format: float\n")
-  
-  	case "double":
-  		b.WriteString("          type: number\n")
-  		b.WriteString("          format: double\n")
-  
-  	case "boolean", "bool":
-  		b.WriteString("          type: boolean\n")
-  
-  	default:
-  		b.WriteString("          type: string\n")
-  		b.WriteString(
-  			"          x-ontology-type: "+typeName+"\n",
-  		)
+	case "uuid":
+		b.WriteString("          type: string\n")
+		b.WriteString("          format: uuid\n")
+
+	case "datetime":
+		b.WriteString("          type: string\n")
+		b.WriteString("          format: date-time\n")
+
+	case "string":
+		b.WriteString("          type: string\n")
+
+	case "integer", "int":
+		b.WriteString("          type: integer\n")
+
+	case "int32":
+		b.WriteString("          type: integer\n")
+		b.WriteString("          format: int32\n")
+
+	case "int64":
+		b.WriteString("          type: integer\n")
+		b.WriteString("          format: int64\n")
+
+	case "float":
+		b.WriteString("          type: number\n")
+		b.WriteString("          format: float\n")
+
+	case "double":
+		b.WriteString("          type: number\n")
+		b.WriteString("          format: double\n")
+
+	case "boolean", "bool":
+		b.WriteString("          type: boolean\n")
+
+	default:
+		b.WriteString("          type: string\n")
+		b.WriteString(
+			"          x-ontology-type: " + typeName + "\n",
+		)
 	}
 
 	for _, constraint := range constraints {
 		switch constraint.Kind {
-  		case "REGEX":
-  			if constraint.Value != "" {
-  				fmt.Fprintf(
-  					b,
-  					"          pattern: %q\n",
-  					constraint.Value,
-  				)
-  			}
-  
-  		case "URI":
-  			if strings.EqualFold(
-  				constraint.Value,
-  				"email",
-  			) {
-  				b.WriteString(
-  					"          format: email\n",
-  				)
-  			}
-  
-  		default:
-  			if constraint.Kind != "" {
-  				fmt.Fprintf(
-  					b,
-  					"          x-constraint-%s: %q\n",
-  					ontology.NormalizeIdentifier(
-  						constraint.Kind,
-  					),
-  					constraint.Value,
-  				)
-			  }
+		case "REGEX":
+			if constraint.Value != "" {
+				fmt.Fprintf(
+					b,
+					"          pattern: %q\n",
+					constraint.Value,
+				)
+			}
+
+		case "URI":
+			if strings.EqualFold(
+				constraint.Value,
+				"email",
+			) {
+				b.WriteString(
+					"          format: email\n",
+				)
+			}
+
+		default:
+			if constraint.Kind != "" {
+				fmt.Fprintf(
+					b,
+					"          x-constraint-%s: %q\n",
+					ontology.NormalizeIdentifier(
+						constraint.Kind,
+					),
+					constraint.Value,
+				)
+			}
 		}
 	}
 }
@@ -221,36 +221,36 @@ func writeRelationshipSchema(
 	)
 
 	switch r.Cardinality {
-  	case ontology.CardinalityMany:
-  		b.WriteString("          type: array\n")
-  		b.WriteString("          items:\n")
-  		fmt.Fprintf(
-  			b,
-  			"            $ref: '#/components/schemas/%s'\n",
-  			r.Target,
-  		)
-  
-    case ontology.CardinalityOne:
-  		fmt.Fprintf(
-  			b,
-  			"          $ref: '#/components/schemas/%s'\n",
-  			r.Target,
-  		)
-      
-  	case ontology.CardinalityZeroOrOne:
-  		b.WriteString("          oneOf:\n")
-  		fmt.Fprintf(
-  			b,
-  			"            - $ref: '#/components/schemas/%s'\n",
-  			r.Target,
-  		)
-  		b.WriteString("          nullable: true\n")
-  
-  	default:
-  		fmt.Fprintf(
-  			b,
-  			"          $ref: '#/components/schemas/%s'\n",
-  			r.Target,
-  		)
+	case ontology.CardinalityMany:
+		b.WriteString("          type: array\n")
+		b.WriteString("          items:\n")
+		fmt.Fprintf(
+			b,
+			"            $ref: '#/components/schemas/%s'\n",
+			r.Target,
+		)
+
+	case ontology.CardinalityOne:
+		fmt.Fprintf(
+			b,
+			"          $ref: '#/components/schemas/%s'\n",
+			r.Target,
+		)
+
+	case ontology.CardinalityZeroOrOne:
+		b.WriteString("          oneOf:\n")
+		fmt.Fprintf(
+			b,
+			"            - $ref: '#/components/schemas/%s'\n",
+			r.Target,
+		)
+		b.WriteString("          nullable: true\n")
+
+	default:
+		fmt.Fprintf(
+			b,
+			"          $ref: '#/components/schemas/%s'\n",
+			r.Target,
+		)
 	}
 }
