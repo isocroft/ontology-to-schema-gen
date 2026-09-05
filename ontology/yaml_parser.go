@@ -2,9 +2,10 @@ package ontology
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
-  "path/filepath"
-  "strconv"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -24,105 +25,118 @@ func NewYAMLParser() *YAMLParser {
 }
 
 func (p *YAMLParser) parseFile(path string, dir string) (*yaml.Node, error) {
-  errMsg_Prefix := fmt.Sprintf("unable to parse file (%s) in directory (%q); ", path, dir)
-  /*!
-    @TODO:
-  
-    Using `os.ReadFile(...)` for now. Will need to 
-    change to something else for larger YAML files.
-  */
+	errMsg_Prefix := fmt.Sprintf("unable to parse file (%s) in directory (%q); ", path, dir)
+	/*!
+	  @TODO:
+
+	  Using `os.ReadFile(...)` for now. Will need to
+	  change to something else for larger YAML files.
+	*/
 	data, err := os.ReadFile(path)
-  
 	if err != nil {
-		return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+		return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 	}
 
 	var root yaml.Node
 
 	if err := yaml.Unmarshal(data, &root); err != nil {
-		return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+		return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 	}
 
 	if len(root.Content) == 0 {
-    err := fmt.Errorf("empty YAML document found")
-		return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+		err := fmt.Errorf("empty YAML document found")
+		return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 	}
 
 	return root.Content[0], nil
 }
 
+func yamlFiles(dir string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".yml", ".yaml":
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files, err
+}
+
 func (p *YAMLParser) ParseDirectory(dir string) (*Ontology, error) {
-  exePath, err := os.Executable()
-  
+	exePath, err := os.Executable()
 	if err != nil {
 		panic(err)
 	}
 
-  rootdir := filepath.Dir(exePath)
-  
-  errMsg_Prefix := fmt.Sprintf("failed to complete parsing for ontology definitions generated from (%s); ", rootdir)
+	rootdir := filepath.Dir(exePath)
+
+	errMsg_Prefix := fmt.Sprintf("failed to complete parsing for ontology definitions generated from (%s); ", rootdir)
 	ontology := &Ontology{
 		Entities: make(map[string]*Entity),
 		Enums:    make(map[string]*Enum),
 	}
 
 	files, err := filepath.Glob(filepath.Join(dir, "**", "*.yml"))
-  
 	if err != nil {
-		return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+		return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 	}
 
 	/*!
-    @INFO:
-    
-    `filepath.Glob` doesn't recursively expand `**`.
-    Therefore, use the filesystem walker instead.
-  */
+	  @INFO:
+
+	  `filepath.Glob` doesn't recursively expand `**`.
+	  Therefore, use the filesystem walker instead.
+	*/
 	files, err = yamlFiles(dir)
-  
 	if err != nil {
-		return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+		return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 	}
 
 	for _, path := range files {
 		root, err := p.parseFile(path, dir)
-    
 		if err != nil {
-			return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+			return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 		}
 
 		switch {
-      case MappingValue(root, "entity") != nil:
-        entity, err := p.parseEntity(root, path)
-        if err != nil {
-          return nil, err
-        }
-  
-        if _, exists := ontology.Entities[entity.Name]; exists {
-          err := fmt.Errorf(
-            "duplicate entity definition '%s'",
-            entity.Name,
-          )
-          return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
-        }
-  
-        ontology.Entities[entity.Name] = entity
-  
-      case MappingValue(root, "enum") != nil:
-        enum, err := p.parseEnum(root)
-        if err != nil {
-          return nil, err
-        }
-  
-        if _, exists := ontology.Enums[enum.Name]; exists {
-          err := fmt.Errorf(
-            "duplicate enum definition '%s'",
-            enum.Name,
-          )
-          return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
-        }
-  
-        ontology.Enums[enum.Name] = enum
+		case MappingValue(root, "entity") != nil:
+			entity, err := p.parseEntity(root, path)
+			if err != nil {
+				return nil, err
+			}
+
+			if _, exists := ontology.Entities[entity.Name]; exists {
+				err := fmt.Errorf(
+					"duplicate entity definition '%s'",
+					entity.Name,
+				)
+				return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
+			}
+
+			ontology.Entities[entity.Name] = entity
+
+		case MappingValue(root, "enum") != nil:
+			enum, err := p.parseEnum(root)
+			if err != nil {
+				return nil, err
+			}
+
+			if _, exists := ontology.Enums[enum.Name]; exists {
+				err := fmt.Errorf(
+					"duplicate enum definition '%s'",
+					enum.Name,
+				)
+				return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
+			}
+
+			ontology.Enums[enum.Name] = enum
 		}
 	}
 
@@ -132,7 +146,7 @@ func (p *YAMLParser) ParseDirectory(dir string) (*Ontology, error) {
 }
 
 func (p *YAMLParser) parseEntity(root *yaml.Node, path string) (*Entity, error) {
-  errMsg_Prefix := "issue while attempting to parse entity; "
+	errMsg_Prefix := "issue while attempting to parse entity; "
 	node := MappingValue(root, "entity")
 
 	if node == nil {
@@ -140,9 +154,9 @@ func (p *YAMLParser) parseEntity(root *yaml.Node, path string) (*Entity, error) 
 	}
 
 	entity := &Entity{
-		Name:         StringValue(MappingValue(node, "name")),
-		Description:  StringValue(MappingValue(node, "description")),
-		Properties:   []Property{},
+		Name:          StringValue(MappingValue(node, "name")),
+		Description:   StringValue(MappingValue(node, "description")),
+		Properties:    []Property{},
 		Relationships: []Relationship{},
 	}
 
@@ -151,39 +165,36 @@ func (p *YAMLParser) parseEntity(root *yaml.Node, path string) (*Entity, error) 
 	}
 
 	properties := MappingValue(node, "properties")
-  relationships := MappingValue(node, "relationships")
+	relationships := MappingValue(node, "relationships")
 
-  if properties == nil || relationships == nil {
-    return entity, nil
-  }
+	if properties == nil || relationships == nil {
+		return entity, nil
+	}
 
+	for i := 0; i < len(properties.Content); i += 2 {
+		nameNode := properties.Content[i]
+		valueNode := properties.Content[i+1]
 
-  for i := 0; i < len(properties.Content); i += 2 {
-    nameNode := properties.Content[i]
-    valueNode := properties.Content[i+1]
+		prop, err := p.parseEntityProperty(
+			nameNode.Value,
+			valueNode,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
+		}
 
-    prop, err := p.parseEntityProperty(
-      nameNode.Value,
-      valueNode
-    )
-
-    if err != nil {
-      return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
-    }
-
-    entity.Properties = append(entity.Properties, prop)
-  }
-	
+		entity.Properties = append(entity.Properties, prop)
+	}
 
 	if relationships != nil {
 		seen := make(map[string]int)
 
 		/*!
-      @NOTE:
-      
-      DO NOT convert this mapping into `map[string]yaml.Node`.
-		  This is so that duplicate relationship keys always survive.
-    */
+		      @NOTE:
+
+		      DO NOT convert this mapping into `map[string]yaml.Node`.
+				  This is so that duplicate relationship keys always survive.
+		*/
 		for i := 0; i < len(relationships.Content); i += 2 {
 			nameNode := relationships.Content[i]
 			valueNode := relationships.Content[i+1]
@@ -206,11 +217,10 @@ func (p *YAMLParser) parseEntity(root *yaml.Node, path string) (*Entity, error) 
 
 			relationship, err := p.parseEntityRelationship(
 				name,
-				valueNode
+				valueNode,
 			)
-
 			if err != nil {
-				return nil, fmt.Errorf(errMsg_Prefix + "reason: %w", err)
+				return nil, fmt.Errorf(errMsg_Prefix+"reason: %w", err)
 			}
 
 			entity.Relationships = append(
@@ -225,9 +235,9 @@ func (p *YAMLParser) parseEntity(root *yaml.Node, path string) (*Entity, error) 
 
 func (p *YAMLParser) parseEntityProperty(
 	name string,
-	node *yaml.Node
+	node *yaml.Node,
 ) (Property, error) {
-  errMsg_Prefix := "cannot process entity property; "
+	errMsg_Prefix := "cannot process entity property; "
 	prop := Property{
 		Name:        name,
 		Type:        StringValue(MappingValue(node, "type")),
@@ -238,38 +248,38 @@ func (p *YAMLParser) parseEntityProperty(
 	if prop.Type == "" {
 		return prop, fmt.Errorf(
 			errMsg_Prefix + fmt.Sprintf("reason: property '%s' has no type",
-			name)
+				name),
 		)
 	}
 
 	constraints := MappingValue(node, "constraint")
 
 	if constraints != nil {
-    if constraints.Kind != yaml.SequenceNode {
-      return prop, fmt.Errorf(errMsg_Prefix + "reason: invalid value kind for constraint")
-    }
-    
-    if constraints.Kind == yaml.SequenceNode {
-  		for _, item := range constraints.Content {
-  			value := item.Value
-  
-  			kind := value
-  			constraintValue := ""
-  
-  			if idx := strings.IndexByte(value, ':'); idx >= 0 {
-  				kind = value[:idx]
-  				constraintValue = value[idx+1:]
-  			}
-  
-  			prop.Constraints = append(
-  				prop.Constraints,
-  				Constraint{
-  					Kind:  strings.TrimSpace(kind),
-  					Value: strings.TrimSpace(constraintValue),
-  				},
-  			)
-  		}
-    }
+		if constraints.Kind != yaml.SequenceNode {
+			return prop, fmt.Errorf(errMsg_Prefix + "reason: invalid value kind for constraint")
+		}
+
+		if constraints.Kind == yaml.SequenceNode {
+			for _, item := range constraints.Content {
+				value := item.Value
+
+				kind := value
+				constraintValue := ""
+
+				if idx := strings.IndexByte(value, ':'); idx >= 0 {
+					kind = value[:idx]
+					constraintValue = value[idx+1:]
+				}
+
+				prop.Constraints = append(
+					prop.Constraints,
+					Constraint{
+						Kind:  strings.TrimSpace(kind),
+						Value: strings.TrimSpace(constraintValue),
+					},
+				)
+			}
+		}
 	}
 
 	return prop, nil
@@ -277,27 +287,26 @@ func (p *YAMLParser) parseEntityProperty(
 
 func (p *YAMLParser) parseEntityRelationship(
 	name string,
-	node *yaml.Node
+	node *yaml.Node,
 ) (Relationship, error) {
-  errMsg_Prefix := "cannot process entity relationship; "
+	errMsg_Prefix := "cannot process entity relationship; "
 	target := StringValue(MappingValue(node, "target"))
 	cardinality := StringValue(MappingValue(node, "cardinality"))
 
 	if target == "" {
 		return Relationship{}, fmt.Errorf(
 			errMsg_Prefix + fmt.Sprintf("reason: relationship '%s' has no target",
-			name)
+				name),
 		)
 	}
 
-  c, err := ParseCardinality(cardinality)
-
-  if err != nil {
-    return Relationship{}, fmt.Errorf(
-      errMsg_Prefix + "reason: %w for relationship",
-      err
-    )
-  }
+	c, err := ParseCardinality(cardinality)
+	if err != nil {
+		return Relationship{}, fmt.Errorf(
+			errMsg_Prefix+"reason: %w for relationship",
+			err,
+		)
+	}
 
 	return Relationship{
 		Name:        name,
@@ -309,7 +318,7 @@ func (p *YAMLParser) parseEntityRelationship(
 func (p *YAMLParser) parseEnum(
 	root *yaml.Node,
 ) (*Enum, error) {
-  errMsg_Prefix := "cannot process enum value; "
+	errMsg_Prefix := "cannot process enum value; "
 	node := MappingValue(root, "enum")
 
 	if node == nil {
@@ -331,7 +340,7 @@ func (p *YAMLParser) parseEnum(
 	if len(values) == 0 {
 		return nil, fmt.Errorf(
 			errMsg_Prefix + fmt.Sprintf("reason: enum '%s' has no values",
-			name)
+				name),
 		)
 	}
 
@@ -346,21 +355,21 @@ func MappingEntries(node *yaml.Node) []MapEntry {
 		return nil
 	}
 
-  /*!
-    @HINT:
-    
-    Single the key-value pairs number half of `node.Content`,
-    makes a slice half the size of `node.Content`
-  */
+	/*!
+	  @HINT:
+
+	  Single the key-value pairs number half of `node.Content`,
+	  makes a slice half the size of `node.Content`
+	*/
 	entries := make([]MapEntry, 0, len(node.Content)/2)
-  
+
 	for i := 0; i < len(node.Content); i += 2 {
 		entries = append(entries, MapEntry{
 			Key:   node.Content[i],
 			Value: node.Content[i+1],
 		})
 	}
-  
+
 	return entries
 }
 
@@ -414,29 +423,29 @@ func BoolValue(node *yaml.Node) bool {
 	}
 
 	/*!
-    @HINT:
-    
-    strconv.ParseBool handles "1", "t", "T", "TRUE", 
-    "true", "True", "0", "f", "F", "FALSE", "false", 
-    "False"
-  */
+	  @HINT:
+
+	  strconv.ParseBool handles "1", "t", "T", "TRUE",
+	  "true", "True", "0", "f", "F", "FALSE", "false",
+	  "False"
+	*/
 	val, err := strconv.ParseBool(strings.TrimSpace(node.Value))
-  
+
 	if err == nil {
 		return val
 	}
 
 	/*!
-    @HINT:
-    
-    Handle additional standard YAML 1.1 boolean 
-    representations ("yes", "no", "on", "off")
-  */
+	  @HINT:
+
+	  Handle additional standard YAML 1.1 boolean
+	  representations ("yes", "no", "on", "off")
+	*/
 	switch strings.ToLower(strings.TrimSpace(node.Value)) {
-  	case "yes", "on":
-  		return true
-  	default:
-  		return false
+	case "yes", "on":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -445,7 +454,7 @@ func SequenceStrings(node *yaml.Node) []string {
 		return nil
 	}
 
-	var values := make([]string, 0, len(node.Content))
+	values := make([]string, 0, len(node.Content))
 
 	for _, item := range node.Content {
 		values = append(values, item.Value)
