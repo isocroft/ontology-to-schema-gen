@@ -24,8 +24,8 @@ func Run() error {
 		"Output directory",
 	)
 
-  ontologyName := flag.String(
-		"output",
+	ontologyName := flag.String(
+		"name",
 		"MY",
 		"Schema name",
 	)
@@ -74,7 +74,7 @@ func Run() error {
 
 	flag.Parse()
 
-	if err := os.MkdirAll(*output, 0755); err != nil {
+	if err := os.MkdirAll(*output, 0o755); err != nil {
 		return fmt.Errorf(
 			"creating output directory failed; reason: %w",
 			err,
@@ -84,7 +84,6 @@ func Run() error {
 	parser := ontology.NewYAMLParser()
 
 	model, err := parser.ParseDirectory(*input)
-
 	if err != nil {
 		return err
 	}
@@ -112,8 +111,8 @@ func Run() error {
 
 		if err := os.WriteFile(
 			path,
-			[]byte(generator.GenerateOpenAPI(ontologyName, model)),
-			0644,
+			[]byte(generator.GenerateOpenAPI(*ontologyName, model)),
+			0o644,
 		); err != nil {
 			return fmt.Errorf(
 				"making OpenAPI schema failed; %w",
@@ -172,8 +171,8 @@ func writeSQL(
 
 	if err := os.WriteFile(
 		path,
-		[]byte(generator.GenerateSQL(ontologyName, model, dialect)),
-		0644,
+		[]byte(generator.GenerateSQL(model.Name, model, dialect)),
+		0o644,
 	); err != nil {
 		return fmt.Errorf(
 			"making %s schema failed; %w",
@@ -196,7 +195,6 @@ func dumpNormalizedModel(
 		"",
 		"  ",
 	)
-
 	if err != nil {
 		return fmt.Errorf(
 			"making normalized model failed; %w",
@@ -207,7 +205,7 @@ func dumpNormalizedModel(
 	if err := os.WriteFile(
 		path,
 		data,
-		0644,
+		0o644,
 	); err != nil {
 		return fmt.Errorf(
 			"making normalized model failed; %w",
